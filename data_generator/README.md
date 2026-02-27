@@ -63,10 +63,10 @@ data = generate_data(G, parent_coefs, intercepts, noise_stds, n_samples=1000, se
 show_graph(G, title="My SCM")
 ```
 
-Structural equation for each variable \(X_j\):
+Structural equation for each variable $X_j$:
 
-\[
+$$
 X_j = \text{intercept}_j + \sum_{i \in \text{pa}(j)} \beta_{ij} X_i + \varepsilon_j, \quad \varepsilon_j \sim \mathcal{N}(0, \sigma_j^2)
-\]
+$$
 
 Coefficients and noise scales are drawn at random when building the model.
