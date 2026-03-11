@@ -119,6 +119,7 @@ def generate_data(
     order = list(nx.topological_sort(G))
     n_vars = G.number_of_nodes()
     data = np.zeros((n_samples, n_vars))
+    adj = np.zeros((n_vars, n_vars))
 
     for j in order:
         intercept = intercepts[j]
@@ -126,9 +127,9 @@ def generate_data(
         value = intercept + noise
         for i, coef in parent_coefs[j]:
             value = value + coef * data[:, i]
+            adj[i, j] = coef
         data[:, j] = value
-
-    return data
+    return data, adj
 
 
 def show_graph(
@@ -187,6 +188,7 @@ def run_generator(
     csv_path: Optional[str | Path] = None,
     show_plot: bool = True,
     plot_save_path: Optional[str | Path] = None,
+    graph_path: Optional[str | Path] = None,
 ) -> tuple[nx.DiGraph, pd.DataFrame]:
     """
     End-to-end: build DAG, structural equations, generate data, optionally plot and save.
@@ -211,6 +213,8 @@ def run_generator(
         Whether to call show_graph (opens matplotlib window).
     plot_save_path : str or Path, optional
         Where to save the graph figure.
+    graph_path: str or Path, optional
+        Where to save the generated weighted adjacency matrix.
 
     Returns
     -------
@@ -218,12 +222,14 @@ def run_generator(
         The structural graph.
     df : pd.DataFrame
         Generated dataset with columns = variable names.
+    adj : pd.DataFrame
+        Generated dataset of the graph adjacency matrix. 
     """
     G = build_random_dag(n_variables, edge_prob=edge_prob, seed=seed)
     parent_coefs, intercepts, noise_stds = build_structural_equations(
         G, noise_std=noise_std, seed=(seed + 1) if seed is not None else None
     )
-    data = generate_data(
+    data, adj_matrix = generate_data(
         G, parent_coefs, intercepts, noise_stds, n_samples,
         seed=(seed + 2) if seed is not None else None,
     )
@@ -231,6 +237,7 @@ def run_generator(
     if variable_names is None:
         variable_names = [f"X{i}" for i in range(n_variables)]
     df = pd.DataFrame(data, columns=variable_names)
+    adj = pd.DataFrame(adj_matrix)
 
     if show_plot:
         show_graph(
@@ -243,7 +250,11 @@ def run_generator(
         Path(csv_path).parent.mkdir(parents=True, exist_ok=True)
         df.to_csv(csv_path, index=False)
 
-    return G, df
+    if graph_path is not None:
+        Path(graph_path).parent.mkdir(parents=True, exist_ok=True)
+        adj.to_csv(graph_path, index=False, header=False)
+
+    return G, df, adj
 
 
 if __name__ == "__main__":
@@ -258,9 +269,10 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output", type=str, default=None, help="Output CSV path")
     parser.add_argument("--no-plot", action="store_true", help="Skip showing graph")
     parser.add_argument("--plot-output", type=str, default=None, help="Save graph figure to path")
+    parser.add_argument("-g", "--graph_path", type=str, default=None, help="Output path for weighted adjacency matrix")
     args = parser.parse_args()
 
-    G, df = run_generator(
+    G, df, adj = run_generator(
         n_variables=args.n_variables,
         n_samples=args.n_samples,
         edge_prob=args.edge_prob,
@@ -269,8 +281,11 @@ if __name__ == "__main__":
         csv_path=args.output,
         show_plot=not args.no_plot,
         plot_save_path=args.plot_output,
+        graph_path=args.graph_path
     )
     print(f"Generated DAG with {G.number_of_nodes()} nodes, {G.number_of_edges()} edges.")
     print(f"Dataset shape: {df.shape}")
     if args.output:
         print(f"Saved to {args.output}")
+    if args.graph_path:
+        print(f"Saved to {args.graph_path}")
