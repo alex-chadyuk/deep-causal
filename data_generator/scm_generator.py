@@ -169,7 +169,7 @@ def show_graph(
     fig, ax = plt.subplots(figsize=figsize)
     nx.draw_networkx_nodes(G, pos, node_color="lightblue", node_size=800, ax=ax)
     nx.draw_networkx_labels(G, pos, labels, font_size=10, ax=ax)
-    nx.draw_networkx_edges(G, pos, edge_color="gray", arrows=True, ax=ax, arrowstyle="-|>")
+    nx.draw_networkx_edges(G, pos, edge_color="gray", arrows=True, ax=ax, arrowstyle="-|>", arrowsize=20)
     ax.set_title(title)
     ax.axis("off")
     plt.tight_layout()
