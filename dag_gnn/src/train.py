@@ -92,8 +92,6 @@ parser.add_argument('--encoder', type=str, default='mlp',
                     help='Type of path encoder model (mlp, or sem).')
 parser.add_argument('--decoder', type=str, default='mlp',
                     help='Type of decoder model (mlp, or sim).')
-parser.add_argument('--no-factor', action='store_true', default=False,
-                    help='Disables factor graph model.')
 parser.add_argument('--suffix', type=str, default='_springs5',
                     help='Suffix for training data (e.g. "_charged".')
 parser.add_argument('--encoder-dropout', type=float, default=0.0,
@@ -128,7 +126,6 @@ parser.add_argument('--dynamic-graph', action='store_true', default=False,
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
-args.factor = not args.no_factor
 print(args)
 
 
@@ -182,12 +179,12 @@ if args.encoder == 'mlp':
     encoder = MLPEncoder(data_variable_size * args.x_dims, args.x_dims, args.encoder_hidden,
                          int(args.z_dims), adj_A,
                          batch_size = args.batch_size,
-                         do_prob = args.encoder_dropout, factor = args.factor).double()
+                         do_prob = args.encoder_dropout).double()
 elif args.encoder == 'sem':
     encoder = SEMEncoder(data_variable_size * args.x_dims, args.encoder_hidden,
                          int(args.z_dims), adj_A,
                          batch_size = args.batch_size,
-                         do_prob = args.encoder_dropout, factor = args.factor).double()
+                         do_prob = args.encoder_dropout).double()
 
 if args.decoder == 'mlp':
     decoder = MLPDecoder(data_variable_size * args.x_dims,

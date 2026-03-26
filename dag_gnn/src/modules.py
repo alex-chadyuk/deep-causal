@@ -10,11 +10,10 @@ _EPS = 1e-10
 
 class MLPEncoder(nn.Module):
     """MLP encoder module."""
-    def __init__(self, n_in, n_xdims, n_hid, n_out, adj_A, batch_size, do_prob=0., factor=True, tol = 0.1):
+    def __init__(self, n_in, n_xdims, n_hid, n_out, adj_A, batch_size, do_prob=0., tol = 0.1):
         super(MLPEncoder, self).__init__()
 
         self.adj_A = nn.Parameter(Variable(torch.from_numpy(adj_A).double(), requires_grad=True))
-        self.factor = factor
 
         self.Wa = nn.Parameter(torch.zeros(n_out), requires_grad=True)
         self.fc1 = nn.Linear(n_xdims, n_hid, bias = True)
@@ -56,10 +55,9 @@ class MLPEncoder(nn.Module):
 
 class SEMEncoder(nn.Module):
     """SEM encoder module."""
-    def __init__(self, n_in, n_hid, n_out, adj_A, batch_size, do_prob=0., factor=True, tol = 0.1):
+    def __init__(self, n_in, n_hid, n_out, adj_A, batch_size, do_prob=0., tol = 0.1):
         super(SEMEncoder, self).__init__()
 
-        self.factor = factor
         self.adj_A = nn.Parameter(Variable(torch.from_numpy(adj_A).double(), requires_grad = True))
         self.dropout_prob = do_prob
         self.batch_size = batch_size
