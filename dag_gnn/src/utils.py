@@ -240,6 +240,15 @@ def get_tril_offdiag_indices(num_nodes):
     return tril_idx.nonzero()
 
 
+def kl_gaussian(preds, zsize):
+    predsnew = preds.squeeze(1)
+    mu = predsnew[:,0:zsize]
+    log_sigma = predsnew[:,zsize:2*zsize]
+    kl_div = torch.exp(2*log_sigma) - 2*log_sigma + mu * mu
+    kl_sum = kl_div.sum()
+    return (kl_sum / (preds.size(0)) - zsize)*0.5
+
+
 def kl_gaussian_sem(preds):
     mu = preds
     kl_div = mu * mu

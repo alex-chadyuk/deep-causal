@@ -326,6 +326,8 @@ def train(epoch, best_val_loss, ground_truth_G, lambda_A, c_A, optimizer):
         loss_nll = nll_gaussian(preds, target, variance)
 
         # KL loss
+        # zsize = preds.shape[1] // 2
+        # loss_kl = kl_gaussian(logits, zsize)
         loss_kl = kl_gaussian_sem(logits)
 
         # ELBO loss:
