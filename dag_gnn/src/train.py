@@ -1,6 +1,6 @@
 
 ''''
-Main function for traininng DAG-GNN
+Main function for training DAG-GNN
 
 '''
 
@@ -100,10 +100,10 @@ parser.add_argument('--encoder-dropout', type=float, default=0.0,
                     help='Dropout rate (1 - keep probability).')
 parser.add_argument('--decoder-dropout', type=float, default=0.0,
                     help='Dropout rate (1 - keep probability).')
-parser.add_argument('--save-folder', type=str, default='logs',
+parser.add_argument('--save-folder', type=str, default='',
                     help='Where to save the trained model, leave empty to not save anything.')
 parser.add_argument('--load-folder', type=str, default='',
-                    help='Where to load the trained model if finetunning. ' +
+                    help='Where to load the trained model if finetuning. ' +
                          'Leave empty to train from scratch')
 
 
@@ -156,12 +156,12 @@ if args.save_folder:
 
     pickle.dump({'args': args}, open(meta_file, "wb"))
 else:
-    print("WARNING: No save_folder provided!" +
-          "Testing (within this script) will throw an error.")
+    print("WARNING: No save_folder provided!")
+    log = None
 
 
 # ================================================
-# get data: experiments = {synthetic SEM, ALARM}
+# get data: data_type = generated (pass in own generated csv) or synthetic
 # ================================================
 train_loader, ground_truth_G = load_data( args, args.batch_size, args.suffix)
 
@@ -173,14 +173,6 @@ else:
 #===================================
 # load modules
 #===================================
-# Generate off-diagonal interaction graph
-off_diag = np.ones([data_variable_size, data_variable_size]) - np.eye(data_variable_size)
-
-rel_rec = np.array(encode_onehot(np.where(off_diag)[1]), dtype=np.float64)
-rel_send = np.array(encode_onehot(np.where(off_diag)[0]), dtype=np.float64)
-rel_rec = torch.DoubleTensor(rel_rec)
-rel_send = torch.DoubleTensor(rel_send)
-
 # add adjacency matrix A
 num_nodes = data_variable_size
 adj_A = np.zeros((num_nodes, num_nodes))
@@ -254,13 +246,8 @@ if args.prior:
 if args.cuda:
     encoder.cuda()
     decoder.cuda()
-    rel_rec = rel_rec.cuda()
-    rel_send = rel_send.cuda()
     triu_indices = triu_indices.cuda()
     tril_indices = tril_indices.cuda()
-
-rel_rec = Variable(rel_rec)
-rel_send = Variable(rel_send)
 
 
 # compute constraint h(A) value
@@ -326,10 +313,10 @@ def train(epoch, best_val_loss, ground_truth_G, lambda_A, c_A, optimizer):
 
         optimizer.zero_grad()
 
-        enc_x, logits, origin_A, adj_A_tilt_encoder, z_gap, z_positive, myA, Wa = encoder(data, rel_rec, rel_send)  # logits is of size: [num_sims, z_dims]
+        enc_x, logits, origin_A, adj_A_tilt_encoder, z_gap, z_positive, myA, Wa = encoder(data)  # logits is of size: [num_sims, z_dims]
         edges = logits
 
-        dec_x, output, adj_A_tilt_decoder = decoder(data, edges, data_variable_size * args.x_dims, rel_rec, rel_send, origin_A, adj_A_tilt_encoder, Wa)
+        dec_x, output, adj_A_tilt_decoder = decoder(data, edges, data_variable_size * args.x_dims, origin_A, adj_A_tilt_encoder, Wa)
 
         if torch.sum(output != output):
             print('nan error\n')
@@ -494,7 +481,6 @@ try:
     fdr, tpr, fpr, shd, nnz = count_accuracy(ground_truth_G, nx.DiGraph(best_NLL_graph))
     print('Best NLL Graph Accuracy: fdr', fdr, ' tpr ', tpr, ' fpr ', fpr, 'shd', shd, 'nnz', nnz)
 
-
     print (best_MSE_graph)
     print(nx.to_numpy_array(ground_truth_G))
     fdr, tpr, fpr, shd, nnz = count_accuracy(ground_truth_G, nx.DiGraph(best_MSE_graph))
@@ -518,7 +504,7 @@ try:
 
 
 except KeyboardInterrupt:
-    # print the best anway
+    # print the best anyway
     print(best_ELBO_graph)
     print(nx.to_numpy_array(ground_truth_G))
     fdr, tpr, fpr, shd, nnz = count_accuracy(ground_truth_G, nx.DiGraph(best_ELBO_graph))

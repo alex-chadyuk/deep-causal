@@ -2,22 +2,11 @@ import numpy as np
 import torch
 from torch.utils.data.dataset import TensorDataset
 from torch.utils.data import DataLoader
-import torch.nn.functional as F
-import torch.nn as nn
-from torch.autograd import Variable
 import numpy as np
-import scipy.linalg as slin
 import scipy.sparse as sp
 import networkx as nx
 import pandas as pd
-from pandas import ExcelWriter
-from pandas import ExcelFile
 import os
-import glob
-import re
-import pickle
-import math
-from torch.optim.adam import Adam
 
 # data generating functions
 
@@ -177,7 +166,6 @@ def count_accuracy(G_true: nx.DiGraph,
     return fdr, tpr, fpr, shd, pred_size
 
 
-
 #========================================
 # VAE utility functions
 #========================================
@@ -207,15 +195,6 @@ def load_data(args, batch_size=1000, suffix='', debug = False):
     train_data_loader = DataLoader(train_data, batch_size=batch_size)
 
     return train_data_loader, G
-
-
-def encode_onehot(labels):
-    classes = set(labels)
-    classes_dict = {c: np.identity(len(classes))[i, :] for i, c in
-                    enumerate(classes)}
-    labels_onehot = np.array(list(map(classes_dict.get, labels)),
-                             dtype=np.int32)
-    return labels_onehot
 
 
 def get_triu_indices(num_nodes):
@@ -261,52 +240,12 @@ def get_tril_offdiag_indices(num_nodes):
     return tril_idx.nonzero()
 
 
-def get_minimum_distance(data):
-    data = data[:, :, :, :2].transpose(1, 2)
-    data_norm = (data ** 2).sum(-1, keepdim=True)
-    dist = data_norm + \
-           data_norm.transpose(2, 3) - \
-           2 * torch.matmul(data, data.transpose(2, 3))
-    min_dist, _ = dist.min(1)
-    return min_dist.view(min_dist.size(0), -1)
-
-
-def kl_categorical(preds, log_prior, num_atoms, eps=1e-16):
-    kl_div = preds * (torch.log(preds + eps) - torch.log(log_prior + eps))
-    return kl_div.sum() / (num_atoms)
-
-def kl_gaussian(preds, zsize):
-    predsnew = preds.squeeze(1)
-    mu = predsnew[:,0:zsize]
-    log_sigma = predsnew[:,zsize:2*zsize]
-    kl_div = torch.exp(2*log_sigma) - 2*log_sigma + mu * mu
-    kl_sum = kl_div.sum()
-    return (kl_sum / (preds.size(0)) - zsize)*0.5
-
 def kl_gaussian_sem(preds):
     mu = preds
     kl_div = mu * mu
     kl_sum = kl_div.sum()
     return (kl_sum / (preds.size(0)))*0.5
 
-def kl_categorical_uniform(preds, num_atoms, num_edge_types, add_const=False,
-                           eps=1e-16):
-    kl_div = preds * torch.log(preds + eps)
-    if add_const:
-        const = np.log(num_edge_types)
-        kl_div += const
-    return kl_div.sum() / (num_atoms * preds.size(0))
-
-def nll_catogrical(preds, target, add_const = False):
-    '''compute the loglikelihood of discrete variables
-    '''
-    # loss = nn.CrossEntropyLoss()
-
-    total_loss = 0
-    for node_size in range(preds.size(1)):
-        total_loss += - (torch.log(preds[:,node_size, target[:, node_size].long()]) * target[:, node_size]).mean()
-
-    return total_loss
 
 def nll_gaussian(preds, target, variance, add_const=False):
     mean1 = preds
@@ -317,7 +256,8 @@ def nll_gaussian(preds, target, variance, add_const=False):
         neg_log_p += const
     return neg_log_p.sum() / (target.size(0))
 
-#Symmetrically normalize adjacency matrix.
+
+# Symmetrically normalize adjacency matrix.
 def normalize_adj(adj):
     rowsum = torch.abs(torch.sum(adj,1))
     d_inv_sqrt = torch.pow(rowsum, -0.5)
@@ -332,12 +272,15 @@ def preprocess_adj_new(adj):
     adj_normalized = (torch.eye(adj.shape[0]).double() - (adj.transpose(0,1)))
     return adj_normalized
 
+
 def preprocess_adj_new1(adj):
     adj_normalized = torch.inverse(torch.eye(adj.shape[0]).double()-adj.transpose(0,1))
     return adj_normalized
 
+
 def isnan(x):
     return x!=x
+
 
 def my_normalize(z):
     znor = torch.zeros(z.size()).double()
@@ -346,24 +289,6 @@ def my_normalize(z):
         znor[i,:,:] = z[i,:,:]/testnorm
     znor[isnan(znor)] = 0.0
     return znor
-
-def sparse_to_tuple(sparse_mx):
-#    """Convert sparse matrix to tuple representation."""
-    def to_tuple(mx):
-        if not sp.isspmatrix_coo(mx):
-            mx = mx.tocoo()
-        coords = np.vstack((mx.row, mx.col)).transpose()
-        values = mx.data
-        shape = mx.shape
-        return coords, values, shape
-
-    if isinstance(sparse_mx, list):
-        for i in range(len(sparse_mx)):
-            sparse_mx[i] = to_tuple(sparse_mx[i])
-    else:
-        sparse_mx = to_tuple(sparse_mx)
-
-    return sparse_mx
 
 
 def matrix_poly(matrix, d):
@@ -378,6 +303,7 @@ def A_connect_loss(A, tol, z):
     for i in range(d):
         loss +=  2 * tol - torch.sum(torch.abs(A[:,i])) - torch.sum(torch.abs(A[i,:])) + z * z
     return loss
+
 
 # element loss: make sure each A_ij > 0
 def A_positive_loss(A, z_positive):
