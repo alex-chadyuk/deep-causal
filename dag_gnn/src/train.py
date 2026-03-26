@@ -310,10 +310,10 @@ def train(epoch, best_val_loss, ground_truth_G, lambda_A, c_A, optimizer):
 
         optimizer.zero_grad()
 
-        enc_x, logits, origin_A, adj_A_tilt_encoder, z_gap, z_positive, myA, Wa = encoder(data)  # logits is of size: [num_sims, z_dims]
+        enc_x, logits, origin_A, z_gap, z_positive, myA, Wa = encoder(data)  # logits is of size: [num_sims, z_dims]
         edges = logits
 
-        dec_x, output, adj_A_tilt_decoder = decoder(data, edges, data_variable_size * args.x_dims, origin_A, adj_A_tilt_encoder, Wa)
+        dec_x, output = decoder(data, edges, data_variable_size * args.x_dims, origin_A, Wa)
 
         if torch.sum(output != output):
             print('nan error\n')
@@ -334,7 +334,7 @@ def train(epoch, best_val_loss, ground_truth_G, lambda_A, c_A, optimizer):
         loss = loss_kl + loss_nll
 
         # add A loss
-        one_adj_A = origin_A # torch.mean(adj_A_tilt_decoder, dim =0)
+        one_adj_A = origin_A # torch.mean(adj_A_tilt_decoder, dim =0) --> note: removed adj_A_tilt_decoder
         sparse_loss = args.tau_A * torch.sum(torch.abs(one_adj_A))
 
         # other loss term

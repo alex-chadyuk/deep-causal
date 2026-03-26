@@ -44,13 +44,12 @@ class MLPEncoder(nn.Module):
         # adj_Aforz = I-A^T
         adj_Aforz = preprocess_adj_new(adj_A1)
 
-        adj_A = torch.eye(adj_A1.size()[0]).double()
         H1 = F.relu((self.fc1(inputs)))
         H1 = F.dropout(H1, p=self.dropout_prob, training=self.training)
         x = (self.fc2(H1))
         logits = torch.matmul(adj_Aforz, x+self.Wa) -self.Wa
 
-        return x, logits, adj_A1, adj_A, self.z, self.z_positive, self.adj_A, self.Wa
+        return x, logits, adj_A1, self.z, self.z_positive, self.adj_A, self.Wa
 
 
 class SEMEncoder(nn.Module):
@@ -81,7 +80,7 @@ class SEMEncoder(nn.Module):
         meanF = torch.matmul(adj_A_inv, torch.mean(torch.matmul(adj_A, inputs), 0))
         logits = torch.matmul(adj_A, inputs-meanF)
 
-        return inputs-meanF, logits, adj_A1, adj_A, None, None, self.adj_A, self.Wa
+        return inputs-meanF, logits, adj_A1, None, None, self.adj_A, self.Wa
 
 
 class MLPDecoder(nn.Module):
@@ -110,7 +109,7 @@ class MLPDecoder(nn.Module):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
-    def forward(self, inputs, input_z, n_in_node, origin_A, adj_A_tilt, Wa):
+    def forward(self, inputs, input_z, n_in_node, origin_A, Wa):
 
         #adj_A_new1 = (I-A^T)^(-1)
         adj_A_new1 = preprocess_adj_new1(origin_A)
@@ -120,7 +119,7 @@ class MLPDecoder(nn.Module):
         H3 = F.dropout(H3, p=self.dropout_prob, training=self.training)
         out = self.out_fc2(H3)
 
-        return mat_z, out, adj_A_tilt
+        return mat_z, out
 
 class SEMDecoder(nn.Module):
     """SEM decoder module."""
@@ -136,12 +135,12 @@ class SEMDecoder(nn.Module):
 
         self.dropout_prob = do_prob
 
-    def forward(self, inputs, input_z, n_in_node, origin_A, adj_A_tilt, Wa):
+    def forward(self, inputs, input_z, n_in_node, origin_A, Wa):
 
         # adj_A_new1 = (I-A^T)^(-1)
         adj_A_new1 = preprocess_adj_new1(origin_A)
         mat_z = torch.matmul(adj_A_new1, input_z + Wa)
         out = mat_z
 
-        return mat_z, out-Wa, adj_A_tilt
+        return mat_z, out-Wa
 
