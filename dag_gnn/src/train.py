@@ -299,14 +299,11 @@ def train(epoch, best_val_loss, ground_truth_G, lambda_A, c_A, optimizer):
     optimizer, lr = update_optimizer(optimizer, args.lr, c_A)
 
 
-    for batch_idx, (data, relations) in enumerate(train_loader):
+    for batch_idx, (data, _) in enumerate(train_loader):
 
         if args.cuda:
-            data, relations = data.cuda(), relations.cuda()
-        data, relations = Variable(data).double(), Variable(relations).double()
-
-        # reshape data
-        relations = relations.unsqueeze(2)
+            data = data.cuda()
+        data = Variable(data).double()
 
         optimizer.zero_grad()
 
