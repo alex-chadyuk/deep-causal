@@ -339,11 +339,11 @@ def train(epoch, best_val_loss, ground_truth_G, lambda_A, c_A, optimizer):
         sparse_loss = args.tau_A * torch.sum(torch.abs(one_adj_A))
 
         # other loss term
-        if args.use_A_connect_loss:
+        if args.use_A_connect_loss and z_gap is not None:
             connect_gap = A_connect_loss(one_adj_A, args.graph_threshold, z_gap)
             loss += lambda_A * connect_gap + 0.5 * c_A * connect_gap * connect_gap
 
-        if args.use_A_positive_loss:
+        if args.use_A_positive_loss and z_positive is not None:
             positive_gap = A_positive_loss(one_adj_A, z_positive)
             loss += .1 * (lambda_A * positive_gap + 0.5 * c_A * positive_gap * positive_gap)
 

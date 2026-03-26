@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import math
 
 from torch.autograd import Variable
 from utils import preprocess_adj_new, preprocess_adj_new1
@@ -35,7 +34,7 @@ class MLPEncoder(nn.Module):
                 m.bias.data.zero_()
 
 
-    def forward(self, inputs, rel_rec, rel_send):
+    def forward(self, inputs):
 
         if torch.sum(self.adj_A != self.adj_A):
             print('nan error \n')
@@ -48,6 +47,7 @@ class MLPEncoder(nn.Module):
 
         adj_A = torch.eye(adj_A1.size()[0]).double()
         H1 = F.relu((self.fc1(inputs)))
+        H1 = F.dropout(H1, p=self.dropout_prob, training=self.training)
         x = (self.fc2(H1))
         logits = torch.matmul(adj_Aforz, x+self.Wa) -self.Wa
 
@@ -64,10 +64,12 @@ class SEMEncoder(nn.Module):
         self.dropout_prob = do_prob
         self.batch_size = batch_size
 
+        self.Wa = torch.zeros(n_in, dtype=torch.double)
+
     def init_weights(self):
         nn.init.xavier_normal(self.adj_A.data)
 
-    def forward(self, inputs, rel_rec, rel_send):
+    def forward(self, inputs):
 
         if torch.sum(self.adj_A != self.adj_A):
             print('nan error \n')
@@ -81,7 +83,7 @@ class SEMEncoder(nn.Module):
         meanF = torch.matmul(adj_A_inv, torch.mean(torch.matmul(adj_A, inputs), 0))
         logits = torch.matmul(adj_A, inputs-meanF)
 
-        return inputs-meanF, logits, adj_A1, adj_A, self.z, self.z_positive, self.adj_A
+        return inputs-meanF, logits, adj_A1, adj_A, None, None, self.adj_A, self.Wa
 
 
 class MLPDecoder(nn.Module):
@@ -110,13 +112,14 @@ class MLPDecoder(nn.Module):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
-    def forward(self, inputs, input_z, n_in_node, rel_rec, rel_send, origin_A, adj_A_tilt, Wa):
+    def forward(self, inputs, input_z, n_in_node, origin_A, adj_A_tilt, Wa):
 
         #adj_A_new1 = (I-A^T)^(-1)
         adj_A_new1 = preprocess_adj_new1(origin_A)
         mat_z = torch.matmul(adj_A_new1, input_z+Wa)-Wa
 
         H3 = F.relu(self.out_fc1((mat_z)))
+        H3 = F.dropout(H3, p=self.dropout_prob, training=self.training)
         out = self.out_fc2(H3)
 
         return mat_z, out, adj_A_tilt
@@ -135,7 +138,7 @@ class SEMDecoder(nn.Module):
 
         self.dropout_prob = do_prob
 
-    def forward(self, inputs, input_z, n_in_node, rel_rec, rel_send, origin_A, adj_A_tilt, Wa):
+    def forward(self, inputs, input_z, n_in_node, origin_A, adj_A_tilt, Wa):
 
         # adj_A_new1 = (I-A^T)^(-1)
         adj_A_new1 = preprocess_adj_new1(origin_A)
