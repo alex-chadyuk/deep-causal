@@ -83,17 +83,13 @@ parser.add_argument('--encoder-hidden', type=int, default=64,
                     help='Number of hidden units.')
 parser.add_argument('--decoder-hidden', type=int, default=64,
                     help='Number of hidden units.')
-parser.add_argument('--temp', type=float, default=0.5,
-                    help='Temperature for Gumbel softmax.')
 parser.add_argument('--k_max_iter', type = int, default = 1e2,
                     help ='the max iteration number for searching lambda and c')
 
 parser.add_argument('--encoder', type=str, default='mlp',
                     help='Type of path encoder model (mlp, or sem).')
 parser.add_argument('--decoder', type=str, default='mlp',
-                    help='Type of decoder model (mlp, or sim).')
-parser.add_argument('--suffix', type=str, default='_springs5',
-                    help='Suffix for training data (e.g. "_charged".')
+                    help='Type of decoder model (mlp, or sem).')
 parser.add_argument('--encoder-dropout', type=float, default=0.0,
                     help='Dropout rate (1 - keep probability).')
 parser.add_argument('--decoder-dropout', type=float, default=0.0,
@@ -107,22 +103,12 @@ parser.add_argument('--load-folder', type=str, default='',
 
 parser.add_argument('--h_tol', type=float, default = 1e-8,
                     help='the tolerance of error of h(A) to zero')
-parser.add_argument('--prediction-steps', type=int, default=10, metavar='N',
-                    help='Num steps to predict before re-using teacher forcing.')
 parser.add_argument('--lr-decay', type=int, default=200,
                     help='After how epochs to decay LR by a factor of gamma.')
 parser.add_argument('--gamma', type=float, default= 1.0,
                     help='LR decay factor.')
-parser.add_argument('--skip-first', action='store_true', default=False,
-                    help='Skip first edge type in decoder, i.e. it represents no-edge.')
-parser.add_argument('--var', type=float, default=5e-5,
-                    help='Output variance.')
-parser.add_argument('--hard', action='store_true', default=False,
-                    help='Uses discrete samples in training forward pass.')
 parser.add_argument('--prior', action='store_true', default=False,
                     help='Whether to use sparsity prior.')
-parser.add_argument('--dynamic-graph', action='store_true', default=False,
-                    help='Whether test with dynamically re-computed graph.')
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -132,9 +118,6 @@ print(args)
 torch.manual_seed(args.seed)
 if args.cuda:
     torch.cuda.manual_seed(args.seed)
-
-if args.dynamic_graph:
-    print("Testing with dynamically re-computed graph.")
 
 # Save model and meta-data. Always saves in a new sub-folder.
 if args.save_folder:
@@ -160,7 +143,7 @@ else:
 # ================================================
 # get data: data_type = generated (pass in own generated csv) or synthetic
 # ================================================
-train_loader, ground_truth_G = load_data( args, args.batch_size, args.suffix)
+train_loader, ground_truth_G = load_data(args, args.batch_size)
 
 if args.data_type == "generated":
     data_variable_size = ground_truth_G.number_of_nodes()
@@ -323,8 +306,6 @@ def train(epoch, best_val_loss, ground_truth_G, lambda_A, c_A, optimizer):
         loss_nll = nll_gaussian(preds, target, variance)
 
         # KL loss
-        # zsize = preds.shape[1] // 2
-        # loss_kl = kl_gaussian(logits, zsize)
         loss_kl = kl_gaussian_sem(logits)
 
         # ELBO loss:

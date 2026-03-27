@@ -3,7 +3,6 @@ import torch
 from torch.utils.data.dataset import TensorDataset
 from torch.utils.data import DataLoader
 import numpy as np
-import scipy.sparse as sp
 import networkx as nx
 import pandas as pd
 import os
@@ -169,7 +168,7 @@ def count_accuracy(G_true: nx.DiGraph,
 #========================================
 # VAE utility functions
 #========================================
-def load_data(args, batch_size=1000, suffix='', debug = False):
+def load_data(args, batch_size=1000):
     #  # configurations
     n, d = args.data_sample_size, args.data_variable_size
     graph_type, degree, sem_type, linear_type = args.graph_type, args.graph_degree, args.graph_sem_type, args.graph_linear_type
