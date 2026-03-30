@@ -10,7 +10,7 @@ _EPS = 1e-10
 
 class MLPEncoder(nn.Module):
     """MLP encoder module."""
-    def __init__(self, n_in, n_xdims, n_hid, n_out, adj_A, batch_size, do_prob=0., tol = 0.1):
+    def __init__(self, n_in, n_xdims, n_hid, n_out, adj_A, do_prob=0., tol = 0.1):
         super(MLPEncoder, self).__init__()
 
         self.adj_A = nn.Parameter(Variable(torch.from_numpy(adj_A).double(), requires_grad=True))
@@ -19,7 +19,6 @@ class MLPEncoder(nn.Module):
         self.fc1 = nn.Linear(n_xdims, n_hid, bias = True)
         self.fc2 = nn.Linear(n_hid, n_out, bias = True)
         self.dropout_prob = do_prob
-        self.batch_size = batch_size
         self.z = nn.Parameter(torch.tensor(tol))
         self.z_positive = nn.Parameter(torch.ones_like(torch.from_numpy(adj_A)).double())
         self.init_weights()
@@ -54,12 +53,11 @@ class MLPEncoder(nn.Module):
 
 class SEMEncoder(nn.Module):
     """SEM encoder module."""
-    def __init__(self, n_in, n_hid, n_out, adj_A, batch_size, do_prob=0., tol = 0.1):
+    def __init__(self, n_in, n_hid, n_out, adj_A, do_prob=0., tol = 0.1):
         super(SEMEncoder, self).__init__()
 
         self.adj_A = nn.Parameter(Variable(torch.from_numpy(adj_A).double(), requires_grad = True))
         self.dropout_prob = do_prob
-        self.batch_size = batch_size
 
         self.Wa = torch.zeros(n_in, dtype=torch.double)
 
@@ -86,15 +84,12 @@ class SEMEncoder(nn.Module):
 class MLPDecoder(nn.Module):
     """MLP decoder module."""
 
-    def __init__(self, n_in_node, n_in_z, n_out, encoder, data_variable_size, batch_size,  n_hid,
+    def __init__(self, n_in_node, n_in_z, n_out, encoder,  n_hid,
                  do_prob=0.):
         super(MLPDecoder, self).__init__()
 
         self.out_fc1 = nn.Linear(n_in_z, n_hid, bias = True)
         self.out_fc2 = nn.Linear(n_hid, n_out, bias = True)
-
-        self.batch_size = batch_size
-        self.data_variable_size = data_variable_size
 
         self.dropout_prob = do_prob
 
@@ -124,16 +119,9 @@ class MLPDecoder(nn.Module):
 class SEMDecoder(nn.Module):
     """SEM decoder module."""
 
-    def __init__(self, n_in_node, n_in_z, n_out, encoder, data_variable_size, batch_size,  n_hid,
-                 do_prob=0.):
+    def __init__(self):
         super(SEMDecoder, self).__init__()
-
-        self.batch_size = batch_size
-        self.data_variable_size = data_variable_size
-
         print('Using learned interaction net decoder.')
-
-        self.dropout_prob = do_prob
 
     def forward(self, inputs, input_z, n_in_node, origin_A, Wa):
 

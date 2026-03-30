@@ -161,28 +161,19 @@ adj_A = np.zeros((num_nodes, num_nodes))
 if args.encoder == 'mlp':
     encoder = MLPEncoder(data_variable_size * args.x_dims, args.x_dims, args.encoder_hidden,
                          int(args.z_dims), adj_A,
-                         batch_size = args.batch_size,
                          do_prob = args.encoder_dropout).double()
 elif args.encoder == 'sem':
     encoder = SEMEncoder(data_variable_size * args.x_dims, args.encoder_hidden,
                          int(args.z_dims), adj_A,
-                         batch_size = args.batch_size,
                          do_prob = args.encoder_dropout).double()
 
 if args.decoder == 'mlp':
     decoder = MLPDecoder(data_variable_size * args.x_dims,
                          args.z_dims, args.x_dims, encoder,
-                         data_variable_size = data_variable_size,
-                         batch_size = args.batch_size,
                          n_hid=args.decoder_hidden,
                          do_prob=args.decoder_dropout).double()
 elif args.decoder == 'sem':
-    decoder = SEMDecoder(data_variable_size * args.x_dims,
-                         args.z_dims, 2, encoder,
-                         data_variable_size = data_variable_size,
-                         batch_size = args.batch_size,
-                         n_hid=args.decoder_hidden,
-                         do_prob=args.decoder_dropout).double()
+    decoder = SEMDecoder().double()
 
 if args.load_folder:
     encoder_file = os.path.join(args.load_folder, 'encoder.pt')
@@ -287,10 +278,11 @@ def train(epoch, best_val_loss, ground_truth_G, lambda_A, c_A, optimizer):
         if args.cuda:
             data = data.cuda()
         data = Variable(data).double()
-
+        print(data.shape)
         optimizer.zero_grad()
 
-        enc_x, logits, origin_A, z_gap, z_positive, myA, Wa = encoder(data)  # logits is of size: [num_sims, z_dims]
+        enc_x, logits, origin_A, z_gap, z_positive, myA, Wa = encoder(data)  
+        # logits is of size: [batch_size, num_vars, z_dims]
         edges = logits
 
         dec_x, output = decoder(data, edges, data_variable_size * args.x_dims, origin_A, Wa)
