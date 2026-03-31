@@ -33,6 +33,7 @@ Options:
 - `-o, --output`       Output CSV path
 - `--no-plot`          Do not show the graph window
 - `--plot-output`      Path to save the graph figure
+- `-g, --graph_path`   Output path for weighted adjacency matrix
 
 ### From Python
 
@@ -62,6 +63,7 @@ parent_coefs, intercepts, noise_stds = build_structural_equations(G, seed=42)
 data = generate_data(G, parent_coefs, intercepts, noise_stds, n_samples=1000, seed=42)
 show_graph(G, title="My SCM")
 ```
+Generated data in `data` follows the naming convention d`<num_vars>`_p`<edge_prob>`_s`<seed>`_n`<num_samples>`, with default arguments omitted. The `*.csv` files are for the data and each has a corresponding `*_graph.txt` file for the weighted adjacency matrix.
 
 Structural equation for each variable $X_j$:
 
