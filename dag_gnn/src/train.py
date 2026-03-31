@@ -107,8 +107,6 @@ parser.add_argument('--lr-decay', type=int, default=200,
                     help='After how epochs to decay LR by a factor of gamma.')
 parser.add_argument('--gamma', type=float, default= 1.0,
                     help='LR decay factor.')
-parser.add_argument('--prior', action='store_true', default=False,
-                    help='Whether to use sparsity prior.')
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -147,6 +145,7 @@ train_loader, ground_truth_G = load_data(args, args.batch_size)
 
 if args.data_type == "generated":
     data_variable_size = ground_truth_G.number_of_nodes()
+    # note: assumes tabular data, uses default x_dim
 else:
     data_variable_size = args.data_variable_size
 
@@ -198,27 +197,10 @@ elif args.optimizer == 'SGD':
 scheduler = lr_scheduler.StepLR(optimizer, step_size=args.lr_decay,
                                 gamma=args.gamma)
 
-# Linear indices of an upper triangular mx, used for acc calculation
-triu_indices = get_triu_offdiag_indices(data_variable_size)
-tril_indices = get_tril_offdiag_indices(data_variable_size)
-
-if args.prior:
-    prior = np.array([0.91, 0.03, 0.03, 0.03])  # hard coded for now
-    print("Using prior")
-    print(prior)
-    log_prior = torch.DoubleTensor(np.log(prior))
-    log_prior = torch.unsqueeze(log_prior, 0)
-    log_prior = torch.unsqueeze(log_prior, 0)
-    log_prior = Variable(log_prior)
-
-    if args.cuda:
-        log_prior = log_prior.cuda()
 
 if args.cuda:
     encoder.cuda()
     decoder.cuda()
-    triu_indices = triu_indices.cuda()
-    tril_indices = tril_indices.cuda()
 
 
 # compute constraint h(A) value
@@ -278,7 +260,7 @@ def train(epoch, best_val_loss, ground_truth_G, lambda_A, c_A, optimizer):
         if args.cuda:
             data = data.cuda()
         data = Variable(data).double()
-        print(data.shape)
+        
         optimizer.zero_grad()
 
         enc_x, logits, origin_A, z_gap, z_positive, myA, Wa = encoder(data)  
