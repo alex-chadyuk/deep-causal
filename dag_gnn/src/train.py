@@ -308,7 +308,17 @@ def train(epoch, best_val_loss, ground_truth_G, lambda_A, c_A, optimizer):
         loss.backward()
         loss = optimizer.step()
 
+        # Hard constraint: masking the parameter
+        mask = torch.ones_like(myA)
+        # For fork:
+        # mask[1, 0] = 0
+        # mask[2, 0] = 0
+        # For collider:
+        # mask[1, 0] = 0
+        myA.data *= mask
+
         myA.data = stau(myA.data, args.tau_A*lr)
+
 
         if torch.sum(origin_A != origin_A):
             print('nan error\n')
