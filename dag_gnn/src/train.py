@@ -158,17 +158,14 @@ adj_A = np.zeros((num_nodes, num_nodes))
 
 
 if args.encoder == 'mlp':
-    encoder = MLPEncoder(data_variable_size * args.x_dims, args.x_dims, args.encoder_hidden,
-                         int(args.z_dims), adj_A,
-                         do_prob = args.encoder_dropout).double()
+    encoder = MLPEncoder(args.x_dims, args.encoder_hidden,
+                         int(args.z_dims), adj_A, args.batch_size,
+                         num_nodes, do_prob = args.encoder_dropout).double()
 elif args.encoder == 'sem':
-    encoder = SEMEncoder(data_variable_size * args.x_dims, args.encoder_hidden,
-                         int(args.z_dims), adj_A,
-                         do_prob = args.encoder_dropout).double()
+    encoder = SEMEncoder(data_variable_size * args.x_dims, adj_A).double()
 
 if args.decoder == 'mlp':
-    decoder = MLPDecoder(data_variable_size * args.x_dims,
-                         args.z_dims, args.x_dims, encoder,
+    decoder = MLPDecoder(args.z_dims, args.x_dims,
                          n_hid=args.decoder_hidden,
                          do_prob=args.decoder_dropout).double()
 elif args.decoder == 'sem':
@@ -267,7 +264,7 @@ def train(epoch, best_val_loss, ground_truth_G, lambda_A, c_A, optimizer):
         # logits is of size: [batch_size, num_vars, z_dims]
         edges = logits
 
-        dec_x, output = decoder(data, edges, data_variable_size * args.x_dims, origin_A, Wa)
+        dec_x, output = decoder(edges, origin_A, Wa)
 
         if torch.sum(output != output):
             print('nan error\n')

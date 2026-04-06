@@ -10,15 +10,20 @@ _EPS = 1e-10
 
 class MLPEncoder(nn.Module):
     """MLP encoder module."""
-    def __init__(self, n_in, n_xdims, n_hid, n_out, adj_A, do_prob=0., tol = 0.1):
+    def __init__(self, n_xdims, n_hid, n_out, adj_A, batch_size, num_nodes, do_prob=0., tol = 0.1):
         super(MLPEncoder, self).__init__()
+
+        self.n_hid = n_hid
+        self.dropout_prob = do_prob
+        self.batch_size = batch_size
+        self.num_nodes = num_nodes
 
         self.adj_A = nn.Parameter(Variable(torch.from_numpy(adj_A).double(), requires_grad=True))
 
         self.Wa = nn.Parameter(torch.zeros(n_out), requires_grad=True)
         self.fc1 = nn.Linear(n_xdims, n_hid, bias = True)
+        self.bn1 = nn.BatchNorm1d(n_hid)
         self.fc2 = nn.Linear(n_hid, n_out, bias = True)
-        self.dropout_prob = do_prob
         self.z = nn.Parameter(torch.tensor(tol))
         self.z_positive = nn.Parameter(torch.ones_like(torch.from_numpy(adj_A)).double())
         self.init_weights()
@@ -42,8 +47,14 @@ class MLPEncoder(nn.Module):
 
         # adj_Aforz = I-A^T
         adj_Aforz = preprocess_adj_new(adj_A1)
+        H1 = self.fc1(inputs)
 
-        H1 = F.relu((self.fc1(inputs)))
+        # Add batchnorm
+        H1 = H1.view(-1, self.n_hid)
+        H1 = self.bn1(H1)
+        H1 = H1.view(self.batch_size, self.num_nodes, self.n_hid)
+
+        H1 = F.relu(H1)
         H1 = F.dropout(H1, p=self.dropout_prob, training=self.training)
         x = (self.fc2(H1))
         logits = torch.matmul(adj_Aforz, x+self.Wa) -self.Wa
@@ -53,11 +64,10 @@ class MLPEncoder(nn.Module):
 
 class SEMEncoder(nn.Module):
     """SEM encoder module."""
-    def __init__(self, n_in, n_hid, n_out, adj_A, do_prob=0., tol = 0.1):
+    def __init__(self, n_in, adj_A):
         super(SEMEncoder, self).__init__()
 
         self.adj_A = nn.Parameter(Variable(torch.from_numpy(adj_A).double(), requires_grad = True))
-        self.dropout_prob = do_prob
 
         self.Wa = torch.zeros(n_in, dtype=torch.double)
 
@@ -84,7 +94,7 @@ class SEMEncoder(nn.Module):
 class MLPDecoder(nn.Module):
     """MLP decoder module."""
 
-    def __init__(self, n_in_node, n_in_z, n_out, encoder,  n_hid,
+    def __init__(self, n_in_z, n_out,  n_hid,
                  do_prob=0.):
         super(MLPDecoder, self).__init__()
 
@@ -104,7 +114,7 @@ class MLPDecoder(nn.Module):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
-    def forward(self, inputs, input_z, n_in_node, origin_A, Wa):
+    def forward(self, input_z, origin_A, Wa):
 
         #adj_A_new1 = (I-A^T)^(-1)
         adj_A_new1 = preprocess_adj_new1(origin_A)
@@ -123,7 +133,7 @@ class SEMDecoder(nn.Module):
         super(SEMDecoder, self).__init__()
         print('Using learned interaction net decoder.')
 
-    def forward(self, inputs, input_z, n_in_node, origin_A, Wa):
+    def forward(self, input_z, origin_A, Wa):
 
         # adj_A_new1 = (I-A^T)^(-1)
         adj_A_new1 = preprocess_adj_new1(origin_A)
