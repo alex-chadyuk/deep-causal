@@ -28,7 +28,7 @@ parser = argparse.ArgumentParser()
 # -----------data parameters ------
 # configurations
 parser.add_argument('--data_type', type=str, default= 'synthetic',
-                    choices=['synthetic', 'generated'],
+                    choices=['synthetic', 'generated', 'sachs'],
                     help='choosing which experiment to do.')
 parser.add_argument('--data_filename', type=str, default='',
                     help='data file name containing the data.')
@@ -139,11 +139,11 @@ else:
 
 
 # ================================================
-# get data: data_type = generated (pass in own generated csv) or synthetic
+# get data: data_type = generated (pass in own generated csv) or dataset (sachs) or synthetic
 # ================================================
 train_loader, ground_truth_G = load_data(args, args.batch_size)
 
-if args.data_type == "generated":
+if args.data_type != "synthetic":
     data_variable_size = ground_truth_G.number_of_nodes()
     # note: assumes tabular data, uses default x_dim
 else:

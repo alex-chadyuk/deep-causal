@@ -6,6 +6,7 @@ import numpy as np
 import networkx as nx
 import pandas as pd
 import os
+from pgmpy.datasets import load_dataset
 
 # data generating functions
 
@@ -185,6 +186,21 @@ def load_data(args, batch_size):
         G = nx.DiGraph(pd.read_csv(graph_path, header=None).values)
         X = pd.read_csv(data_path).values
         X = X[:, :, np.newaxis]
+    elif args.data_type == 'sachs':
+        # load standard dataset from pgmpy
+        dataset = load_dataset("sachs_continuous")
+        df = dataset.data
+        X = df.values.astype(float)
+        X = X[:, :, np.newaxis]
+
+        # convert ground_truth DAG to NetworkX DiGraph
+        G = nx.DiGraph(dataset.ground_truth)
+        print(G.edges())
+        # ensure node order matches df.columns
+        nodes = list(df.columns)
+        A = nx.to_numpy_array(G, nodelist=nodes, weight=None).astype(int)
+        G = nx.DiGraph(A) # convert to integers
+        print(G.edges())
 
     feat_train = torch.FloatTensor(X)
 
