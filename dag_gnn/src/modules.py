@@ -10,12 +10,11 @@ _EPS = 1e-10
 
 class MLPEncoder(nn.Module):
     """MLP encoder module."""
-    def __init__(self, n_xdims, n_hid, n_out, adj_A, batch_size, num_nodes, do_prob=0., tol = 0.1):
+    def __init__(self, n_xdims, n_hid, n_out, adj_A, num_nodes, do_prob=0., tol = 0.1):
         super(MLPEncoder, self).__init__()
 
         self.n_hid = n_hid
         self.dropout_prob = do_prob
-        self.batch_size = batch_size
         self.num_nodes = num_nodes
 
         self.adj_A = nn.Parameter(Variable(torch.from_numpy(adj_A).double(), requires_grad=True))
@@ -45,6 +44,16 @@ class MLPEncoder(nn.Module):
         # to amplify the value of A and accelerate convergence.
         adj_A1 = torch.sinh(3.*self.adj_A)
 
+        # Adding mask
+        mask = torch.ones_like(adj_A1)
+        # For fork:
+        # mask[1, 0] = 0
+        # mask[2, 0] = 0
+        # For collider:
+        # mask[1, 0] = 0
+        adj_A1 *= mask
+
+
         # adj_Aforz = I-A^T
         adj_Aforz = preprocess_adj_new(adj_A1)
         H1 = self.fc1(inputs)
@@ -52,7 +61,7 @@ class MLPEncoder(nn.Module):
         # Add batchnorm
         H1 = H1.view(-1, self.n_hid)
         H1 = self.bn1(H1)
-        H1 = H1.view(self.batch_size, self.num_nodes, self.n_hid)
+        H1 = H1.view(-1, self.num_nodes, self.n_hid)
 
         H1 = F.relu(H1)
         H1 = F.dropout(H1, p=self.dropout_prob, training=self.training)

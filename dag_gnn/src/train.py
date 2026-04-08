@@ -159,7 +159,7 @@ adj_A = np.zeros((num_nodes, num_nodes))
 
 if args.encoder == 'mlp':
     encoder = MLPEncoder(args.x_dims, args.encoder_hidden,
-                         int(args.z_dims), adj_A, args.batch_size,
+                         int(args.z_dims), adj_A,
                          num_nodes, do_prob = args.encoder_dropout).double()
 elif args.encoder == 'sem':
     encoder = SEMEncoder(data_variable_size * args.x_dims, adj_A).double()
@@ -304,15 +304,6 @@ def train(epoch, best_val_loss, ground_truth_G, lambda_A, c_A, optimizer):
 
         loss.backward()
         loss = optimizer.step()
-
-        # Hard constraint: masking the parameter
-        mask = torch.ones_like(myA)
-        # For fork:
-        # mask[1, 0] = 0
-        # mask[2, 0] = 0
-        # For collider:
-        # mask[1, 0] = 0
-        myA.data *= mask
 
         myA.data = stau(myA.data, args.tau_A*lr)
 
