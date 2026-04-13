@@ -75,7 +75,7 @@ parser.add_argument('--no-cuda', action='store_true', default=True,
 parser.add_argument('--seed', type=int, default=42, help='Random seed.')
 parser.add_argument('--epochs', type=int, default= 300,
                     help='Number of epochs to train.')
-parser.add_argument('--batch-size', type=int, default = 100, # note: should be divisible by sample size, otherwise throw an error
+parser.add_argument('--batch-size', type=int, default = 100,
                     help='Number of samples per batch.')
 parser.add_argument('--lr', type=float, default=3e-3,  # baseline rate = 1e-3
                     help='Initial learning rate.')
@@ -245,8 +245,6 @@ def train(epoch, best_val_loss, ground_truth_G, lambda_A, c_A, optimizer):
 
     encoder.train()
     decoder.train()
-    scheduler.step()
-
 
     # update optimizer
     optimizer, lr = update_optimizer(optimizer, args.lr, c_A)
@@ -304,6 +302,7 @@ def train(epoch, best_val_loss, ground_truth_G, lambda_A, c_A, optimizer):
 
         loss.backward()
         loss = optimizer.step()
+        scheduler.step()
 
         myA.data = stau(myA.data, args.tau_A*lr)
 
@@ -323,19 +322,19 @@ def train(epoch, best_val_loss, ground_truth_G, lambda_A, c_A, optimizer):
         kl_train.append(loss_kl.item())
         shd_train.append(shd)
 
-    print(h_A.item())
+    # print(h_A.item())
     nll_val = []
     acc_val = []
     kl_val = []
     mse_val = []
-
-    print('Epoch: {:04d}'.format(epoch),
-          'nll_train: {:.10f}'.format(np.mean(nll_train)),
-          'kl_train: {:.10f}'.format(np.mean(kl_train)),
-          'ELBO_loss: {:.10f}'.format(np.mean(kl_train)  + np.mean(nll_train)),
-          'mse_train: {:.10f}'.format(np.mean(mse_train)),
-          'shd_train: {:.10f}'.format(np.mean(shd_train)),
-          'time: {:.4f}s'.format(time.time() - t))
+    if epoch % 50 == 0:
+        print('Epoch: {:04d}'.format(epoch),
+            'nll_train: {:.10f}'.format(np.mean(nll_train)),
+            'kl_train: {:.10f}'.format(np.mean(kl_train)),
+            'ELBO_loss: {:.10f}'.format(np.mean(kl_train)  + np.mean(nll_train)),
+            'mse_train: {:.10f}'.format(np.mean(mse_train)),
+            'shd_train: {:.10f}'.format(np.mean(shd_train)),
+            'time: {:.4f}s'.format(time.time() - t))
     if args.save_folder and np.mean(nll_val) < best_val_loss:
         torch.save(encoder.state_dict(), encoder_file)
         torch.save(decoder.state_dict(), decoder_file)
@@ -377,26 +376,29 @@ h_A_old = np.inf
 
 try:
     for step_k in range(k_max_iter):
+        print(step_k)
         while c_A < 1e+20:
             for epoch in range(args.epochs):
                 ELBO_loss, NLL_loss, MSE_loss, graph, origin_A = train(epoch, best_ELBO_loss, ground_truth_G, lambda_A, c_A, optimizer)
                 if ELBO_loss < best_ELBO_loss:
                     best_ELBO_loss = ELBO_loss
-                    best_epoch = epoch
+                    best_ELBO_epoch = epoch
                     best_ELBO_graph = graph
 
                 if NLL_loss < best_NLL_loss:
                     best_NLL_loss = NLL_loss
-                    best_epoch = epoch
+                    best_NLL_epoch = epoch
                     best_NLL_graph = graph
 
                 if MSE_loss < best_MSE_loss:
                     best_MSE_loss = MSE_loss
-                    best_epoch = epoch
+                    best_MSE_epoch = epoch
                     best_MSE_graph = graph
 
             print("Optimization Finished!")
-            print("Best Epoch: {:04d}".format(best_epoch))
+            print("Best ELBO Epoch: {:04d}".format(best_ELBO_epoch))
+            print("Best NLL Epoch: {:04d}".format(best_NLL_epoch))
+            print("Best MSE Epoch: {:04d}".format(best_MSE_epoch))
             if ELBO_loss > 2 * best_ELBO_loss:
                 break
 
@@ -414,6 +416,7 @@ try:
         lambda_A += c_A * h_A_new.item()
 
         if h_A_new.item() <= h_tol:
+            print("broken")
             break
 
 
