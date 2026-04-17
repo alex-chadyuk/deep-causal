@@ -21,7 +21,11 @@ class MLPEncoder(nn.Module):
 
         self.Wa = nn.Parameter(torch.zeros(n_out), requires_grad=True)
         self.fc1 = nn.Linear(n_xdims, n_hid, bias = True)
-        self.bn1 = nn.BatchNorm1d(n_hid)
+        
+        # Either BatchNorm or LayerNorm
+        # self.bn1 = nn.BatchNorm1d(n_hid)
+        # self.ln1 = nn.LayerNorm(n_hid)
+
         self.fc2 = nn.Linear(n_hid, n_out, bias = True)
         self.z = nn.Parameter(torch.tensor(tol))
         self.z_positive = nn.Parameter(torch.ones_like(torch.from_numpy(adj_A)).double())
@@ -45,30 +49,34 @@ class MLPEncoder(nn.Module):
         adj_A1 = torch.sinh(3.*self.adj_A)
 
         # Adding mask
-        mask = torch.ones_like(adj_A1)
+        # mask = torch.ones(self.num_nodes, self.num_nodes)
         # For fork:
         # mask[1, 0] = 0
         # mask[2, 0] = 0
         # For collider:
         # mask[1, 0] = 0
-        adj_A1 *= mask
-
+        # mask[2, 0] = 0
+        # self.register_buffer("mask", mask)
+        # adj_A1 *= mask
 
         # adj_Aforz = I-A^T
         adj_Aforz = preprocess_adj_new(adj_A1)
         H1 = self.fc1(inputs)
 
-        # Add batchnorm
-        H1 = H1.view(-1, self.n_hid)
-        H1 = self.bn1(H1)
-        H1 = H1.view(-1, self.num_nodes, self.n_hid)
+        # BatchNorm
+        # H1 = H1.view(-1, self.n_hid)
+        # H1 = self.bn1(H1)
+        # H1 = H1.view(-1, self.num_nodes, self.n_hid)
+
+        # LayerNorm
+        # H1 = self.ln1(H1)
 
         H1 = F.relu(H1)
         H1 = F.dropout(H1, p=self.dropout_prob, training=self.training)
         x = (self.fc2(H1))
         logits = torch.matmul(adj_Aforz, x+self.Wa) -self.Wa
 
-        return x, logits, adj_A1, self.z, self.z_positive, self.adj_A, self.Wa
+        return logits, adj_A1, self.z, self.z_positive, self.adj_A, self.Wa
 
 
 class SEMEncoder(nn.Module):
@@ -97,7 +105,7 @@ class SEMEncoder(nn.Module):
         meanF = torch.matmul(adj_A_inv, torch.mean(torch.matmul(adj_A, inputs), 0))
         logits = torch.matmul(adj_A, inputs-meanF)
 
-        return inputs-meanF, logits, adj_A1, None, None, self.adj_A, self.Wa
+        return logits, adj_A1, None, None, self.adj_A, self.Wa
 
 
 class MLPDecoder(nn.Module):
@@ -133,7 +141,7 @@ class MLPDecoder(nn.Module):
         H3 = F.dropout(H3, p=self.dropout_prob, training=self.training)
         out = self.out_fc2(H3)
 
-        return mat_z, out
+        return out
 
 class SEMDecoder(nn.Module):
     """SEM decoder module."""
@@ -149,5 +157,5 @@ class SEMDecoder(nn.Module):
         mat_z = torch.matmul(adj_A_new1, input_z + Wa)
         out = mat_z
 
-        return mat_z, out-Wa
+        return out-Wa
 

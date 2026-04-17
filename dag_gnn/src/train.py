@@ -258,11 +258,10 @@ def train(epoch, best_val_loss, ground_truth_G, lambda_A, c_A, optimizer):
         
         optimizer.zero_grad()
 
-        enc_x, logits, origin_A, z_gap, z_positive, myA, Wa = encoder(data)  
+        logits, origin_A, z_gap, z_positive, myA, Wa = encoder(data)  
         # logits is of size: [batch_size, num_vars, z_dims]
-        edges = logits
 
-        dec_x, output = decoder(edges, origin_A, Wa)
+        output = decoder(logits, origin_A, Wa)
 
         if torch.sum(output != output):
             print('nan error\n')
@@ -275,15 +274,13 @@ def train(epoch, best_val_loss, ground_truth_G, lambda_A, c_A, optimizer):
         loss_nll = nll_gaussian(preds, target, variance)
 
         # KL loss
-        # zsize = preds.shape[1] // 2
-        # loss_kl = kl_gaussian(logits, zsize) --> shouldn't use this
         loss_kl = kl_gaussian_sem(logits)
 
         # ELBO loss:
         loss = loss_kl + loss_nll
 
         # add A loss
-        one_adj_A = origin_A # torch.mean(adj_A_tilt_decoder, dim =0) --> note: removed adj_A_tilt_decoder
+        one_adj_A = origin_A
         sparse_loss = args.tau_A * torch.sum(torch.abs(one_adj_A))
 
         # other loss term
@@ -324,9 +321,6 @@ def train(epoch, best_val_loss, ground_truth_G, lambda_A, c_A, optimizer):
 
     # print(h_A.item())
     nll_val = []
-    acc_val = []
-    kl_val = []
-    mse_val = []
     if epoch % 50 == 0:
         print('Epoch: {:04d}'.format(epoch),
             'nll_train: {:.10f}'.format(np.mean(nll_train)),

@@ -212,15 +212,6 @@ def load_data(args, batch_size):
     return train_data_loader, G
 
 
-def kl_gaussian(preds, zsize):
-    predsnew = preds.squeeze(1)
-    mu = predsnew[:,0:zsize]
-    log_sigma = predsnew[:,zsize:2*zsize]
-    kl_div = torch.exp(2*log_sigma) - 2*log_sigma + mu * mu
-    kl_sum = kl_div.sum()
-    return (kl_sum / (preds.size(0)) - zsize)*0.5
-
-
 def kl_gaussian_sem(preds):
     mu = preds
     kl_div = mu * mu
@@ -238,17 +229,6 @@ def nll_gaussian(preds, target, variance, add_const=False):
     return neg_log_p.sum() / (target.size(0))
 
 
-# Symmetrically normalize adjacency matrix.
-def normalize_adj(adj):
-    rowsum = torch.abs(torch.sum(adj,1))
-    d_inv_sqrt = torch.pow(rowsum, -0.5)
-    d_inv_sqrt[torch.isinf(d_inv_sqrt)] = 0.
-    d_mat_inv_sqrt = torch.diag(d_inv_sqrt)
-    myr = torch.matmul(torch.matmul(d_mat_inv_sqrt,adj),d_mat_inv_sqrt)
-    myr[isnan(myr)] = 0.
-    return myr
-
-
 def preprocess_adj_new(adj):
     adj_normalized = (torch.eye(adj.shape[0]).double() - (adj.transpose(0,1)))
     return adj_normalized
@@ -261,15 +241,6 @@ def preprocess_adj_new1(adj):
 
 def isnan(x):
     return x!=x
-
-
-def my_normalize(z):
-    znor = torch.zeros(z.size()).double()
-    for i in range(z.size(0)):
-        testnorm = torch.norm(z[i,:,:], dim=0)
-        znor[i,:,:] = z[i,:,:]/testnorm
-    znor[isnan(znor)] = 0.0
-    return znor
 
 
 def matrix_poly(matrix, d):
