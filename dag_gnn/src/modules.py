@@ -5,17 +5,16 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from utils import preprocess_adj_new, preprocess_adj_new1
 
-_EPS = 1e-10
-
 
 class MLPEncoder(nn.Module):
     """MLP encoder module."""
-    def __init__(self, n_xdims, n_hid, n_out, adj_A, num_nodes, do_prob=0., tol = 0.1):
+    def __init__(self, n_xdims, n_hid, n_out, adj_A, mask, num_nodes, do_prob=0., tol = 0.1):
         super(MLPEncoder, self).__init__()
 
         self.n_hid = n_hid
         self.dropout_prob = do_prob
         self.num_nodes = num_nodes
+        self.mask = mask
 
         self.adj_A = nn.Parameter(Variable(torch.from_numpy(adj_A).double(), requires_grad=True))
 
@@ -23,7 +22,7 @@ class MLPEncoder(nn.Module):
         self.fc1 = nn.Linear(n_xdims, n_hid, bias = True)
         
         # Either BatchNorm or LayerNorm
-        # self.bn1 = nn.BatchNorm1d(n_hid)
+        self.bn1 = nn.BatchNorm1d(n_hid)
         # self.ln1 = nn.LayerNorm(n_hid)
 
         self.fc2 = nn.Linear(n_hid, n_out, bias = True)
@@ -48,25 +47,17 @@ class MLPEncoder(nn.Module):
         # to amplify the value of A and accelerate convergence.
         adj_A1 = torch.sinh(3.*self.adj_A)
 
-        # Adding mask
-        # mask = torch.ones(self.num_nodes, self.num_nodes)
-        # For fork:
-        # mask[1, 0] = 0
-        # mask[2, 0] = 0
-        # For collider:
-        # mask[1, 0] = 0
-        # mask[2, 0] = 0
-        # self.register_buffer("mask", mask)
-        # adj_A1 *= mask
+        # Apply mask
+        adj_A1 *= self.mask
 
         # adj_Aforz = I-A^T
         adj_Aforz = preprocess_adj_new(adj_A1)
         H1 = self.fc1(inputs)
 
         # BatchNorm
-        # H1 = H1.view(-1, self.n_hid)
-        # H1 = self.bn1(H1)
-        # H1 = H1.view(-1, self.num_nodes, self.n_hid)
+        H1 = H1.view(-1, self.n_hid)
+        H1 = self.bn1(H1)
+        H1 = H1.view(-1, self.num_nodes, self.n_hid)
 
         # LayerNorm
         # H1 = self.ln1(H1)
@@ -155,7 +146,6 @@ class SEMDecoder(nn.Module):
         # adj_A_new1 = (I-A^T)^(-1)
         adj_A_new1 = preprocess_adj_new1(origin_A)
         mat_z = torch.matmul(adj_A_new1, input_z + Wa)
-        out = mat_z
 
-        return out-Wa
+        return mat_z-Wa
 

@@ -156,10 +156,22 @@ else:
 num_nodes = data_variable_size
 adj_A = np.zeros((num_nodes, num_nodes))
 
+# Adding mask
+mask = torch.ones(num_nodes, num_nodes)
+# mask[0, 0] = 0
+# mask[0, 1] = 0
+# mask[0, 2] = 0
+# mask[1, 0] = 0
+# mask[1, 1] = 0
+# mask[1, 2] = 0
+# mask[2, 0] = 0
+# mask[2, 1] = 0
+# mask[2, 2] = 0
+
 
 if args.encoder == 'mlp':
     encoder = MLPEncoder(args.x_dims, args.encoder_hidden,
-                         int(args.z_dims), adj_A,
+                         int(args.z_dims), adj_A, mask,
                          num_nodes, do_prob = args.encoder_dropout).double()
 elif args.encoder == 'sem':
     encoder = SEMEncoder(data_variable_size * args.x_dims, adj_A).double()
@@ -248,7 +260,6 @@ def train(epoch, best_val_loss, ground_truth_G, lambda_A, c_A, optimizer):
 
     # update optimizer
     optimizer, lr = update_optimizer(optimizer, args.lr, c_A)
-
 
     for batch_idx, (data, _) in enumerate(train_loader):
 
